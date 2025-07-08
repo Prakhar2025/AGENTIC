@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Drishti - Event Safety Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(45deg, #4285f4, #34a853, #fbbc05, #ea4335);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0;
+            margin-top: 1rem;
+        }
+
+        .nav-tab {
+            padding: 0.8rem 1.5rem;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-tab:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+        }
+
+        .nav-tab.active {
+            background: rgba(255,255,255,0.9);
+            color: #1e3c72;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(20px);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+
+        .metric-card {
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #4285f4, #34a853);
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 1rem 0;
+        }
+
+        .metric-label {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-high { color: #dc3545; }
+        .status-medium { color: #ffc107; }
+        .status-low { color: #28a745; }
+
+        .heatmap-container {
+            position: relative;
+            height: 400px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .heatmap {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="%23f0f0f0"/><circle cx="100" cy="100" r="40" fill="%23ff6b6b" opacity="0.6"/><circle cx="200" cy="150" r="30" fill="%23ffd93d" opacity="0.6"/><circle cx="300" cy="120" r="35" fill="%23ff6b6b" opacity="0.7"/><circle cx="150" cy="200" r="25" fill="%234ecdc4" opacity="0.5"/><circle cx="320" cy="220" r="20" fill="%23ffd93d" opacity="0.5"/></svg>') no-repeat center;
+            background-size: cover;
+        }
+
+        .zone-labels {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .alerts-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            background: rgba(248, 249, 250, 0.8);
+            border-radius: 8px;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+        }
+
+        .alert-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .alert-high { border-left-color: #dc3545; }
+        .alert-medium { border-left-color: #ffc107; }
+        .alert-low { border-left-color: #28a745; }
+
+        .alert-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 1rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+        }
+
+        .alert-high .alert-icon { background: #dc3545; }
+        .alert-medium .alert-icon { background: #ffc107; }
+        .alert-low .alert-icon { background: #28a745; }
+
+        .alert-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4285f4, #1976d2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 133, 244, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .dispatch-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .dispatch-table th,
+        .dispatch-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .dispatch-table th {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .dispatch-table tr:hover {
+            background: rgba(66, 133, 244, 0.05);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-available {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-busy {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-route {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .query-panel {
+            margin-top: 2rem;
+        }
+
+        .query-input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .query-input:focus {
+            outline: none;
+            border-color: #4285f4;
+            box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
+        }
+
+        .query-results {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(66, 133, 244, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid #4285f4;
+        }
+
+        .time-slider {
+            width: 100%;
+            margin: 1rem 0;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+            
+            .header {
+                padding: 1rem;
+            }
+            
+            .nav-tabs {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            <div class="logo">D</div>
+            Project Drishti – Event Safety Dashboard
+        </h1>
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('overview')">Overview</button>
+            <button class="nav-tab" onclick="showTab('heatmap')">Crowd Heatmap</button>
+            <button class="nav-tab" onclick="showTab('alerts')">Alerts</button>
+            <button class="nav-tab" onclick="showTab('dispatch')">Dispatch</button>
+            <button class="nav-tab" onclick="showTab('reports')">Reports</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Overview Tab -->
+        <div id="overview" class="tab-content active">
+            <div class="dashboard-grid">
+                <div class="card metric-card">
+                    <div class="metric-label">Crowd Density</div>
+                    <div class="metric-value status-high">High</div>
+                    <div>Flow: Moderate</div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-label">Predicted Bottlenecks</div>
+                    <div class="metric-value status-medium">75%</div>
+                    <div>West Zone (Next 20 min)</div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-label">Incident Reports</div>
+                    <div class="metric-value status-medium">3</div>
+                    <div>2 Medical, 1 Security</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Live Event Overview</h3>
+                <div class="heatmap-container">
+                    <div class="heatmap"></div>
+                    <div class="zone-labels">
+                        <span>North Zone</span>
+                        <span>East Zone</span>
+                        <span>West Zone</span>
+                        <span>South Zone</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Heatmap Tab -->
+        <div id="heatmap" class="tab-content">
+            <div class="card">
+                <h3>Interactive Crowd Heatmap</h3>
+                <div class="controls">
+                    <select class="btn btn-secondary">
+                        <option>All Zones</option>
+                        <option>North Zone</option>
+                        <option>East Zone</option>
+                        <option>West Zone</option>
+                        <option>South Zone</option>
+                    </select>
+                    <button class="btn btn-primary">Real-time</button>
+                    <button class="btn btn-secondary">Forecast</button>
+                </div>
+                <div class="heatmap-container">
+                    <div class="heatmap"></div>
+                    <div class="zone-labels">
+                        <span>🔴 High Density</span>
+                        <span>🟡 Medium Density</span>
+                        <span>🟢 Low Density</span>
+                    </div>
+                </div>
+                <input type="range" class="time-slider" min="0" max="60" value="0">
+                <div style="text-align: center; margin-top: 0.5rem;">
+                    Time Forecast: <span id="forecast-time">Current</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Tab -->
+        <div id="alerts" class="tab-content">
+            <div class="card">
+                <h3>Active Alerts</h3>
+                <div class="alerts-list">
+                    <div class="alert-item alert-high">
+                        <div class="alert-icon">🔥</div>
+                        <div>
+                            <strong>Fire detected near North Entrance</strong><br>
+                            <small>Reported 2 minutes ago</small>
+                        </div>
+                        <div class="alert-actions">
+                            <button class="btn btn-primary">Acknowledge</button>
+                            <button class="btn btn-secondary">Escalate</button>
+                        </div>
+                    </div>
+                    <div class="alert-item alert-high">
+                        <div class="alert-icon">🚨</div>
+                        <div>
+                            <strong>Medical emergency in South Zone</strong><br>
+                            <small>Reported 5 minutes ago</small>
+                        </div>
+                        <div class="alert-actions">
+                            <button class="btn btn-primary">Acknowledge</button>
+                            <button class="btn btn-secondary">Escalate</button>
+                        </div>
+                    </div>
+                    <div class="alert-item alert-medium">
+                        <div class="alert-icon">👥</div>
+                        <div>
+                            <strong>Crowd surge in East Zone</strong><br>
+                            <small>Reported 8 minutes ago</small>
+                        </div>
+                        <div class="alert-actions">
+                            <button class="btn btn-primary">Acknowledge</button>
+                            <button class="btn btn-secondary">Escalate</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dispatch Tab -->
+        <div id="dispatch" class="tab-content">
+            <div class="card">
+                <h3>Resource Dispatch</h3>
+                <table class="dispatch-table">
+                    <thead>
+                        <tr>
+                            <th>Unit</th>
+                            <th>Status</th>
+                            <th>Location</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Unit 1</td>
+                            <td><span class="status-badge status-available">Available</span></td>
+                            <td>North Gate</td>
+                            <td><button class="btn btn-primary">Dispatch</button></td>
+                        </tr>
+                        <tr>
+                            <td>Unit 2</td>
+                            <td><span class="status-badge status-route">On Route</span></td>
+                            <td>East Zone</td>
+                            <td><button class="btn btn-secondary" disabled>--</button></td>
+                        </tr>
+                        <tr>
+                            <td>Unit 3</td>
+                            <td><span class="status-badge status-busy">Busy</span></td>
+                            <td>Medical Bay</td>
+                            <td><button class="btn btn-secondary" disabled>--</button></td>
+                        </tr>
+                        <tr>
+                            <td>Unit 4</td>
+                            <td><span class="status-badge status-available">Available</span></td>
+                            <td>South Zone</td>
+                            <td><button class="btn btn-primary">Dispatch</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div id="reports" class="tab-content">
+            <div class="card">
+                <h3>Reports & Natural Language Query</h3>
+                <div class="query-panel">
+                    <input type="text" class="query-input" placeholder="Ask about event safety... (e.g., 'Summarize safety in West Zone')" onkeypress="handleQuery(event)">
+                    <div class="query-results" id="query-results" style="display: none;">
+                        <strong>AI Analysis:</strong> Based on current data, West Zone shows elevated crowd density with 75% bottleneck risk in the next 20 minutes. Recommend deploying additional security personnel and activating crowd flow management protocols.
+                    </div>
+                </div>
+                
+                <div style="margin-top: 2rem;">
+                    <h4>Quick Queries:</h4>
+                    <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-secondary" onclick="showSampleQuery('West Zone Summary')">West Zone Summary</button>
+                        <button class="btn btn-secondary" onclick="showSampleQuery('Medical Incidents')">Medical Incidents</button>
+                        <button class="btn btn-secondary" onclick="showSampleQuery('Resource Status')">Resource Status</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tabs
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Remove active class from all nav tabs
+            const navTabs = document.querySelectorAll('.nav-tab');
+            navTabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked nav tab
+            event.target.classList.add('active');
+        }
+
+        function handleQuery(event) {
+            if (event.key === 'Enter') {
+                const results = document.getElementById('query-results');
+                results.style.display = 'block';
+                
+                // Simulate different responses based on input
+                const query = event.target.value.toLowerCase();
+                let response = '';
+                
+                if (query.includes('west zone')) {
+                    response = '<strong>West Zone Analysis:</strong> Current crowd density: High (75% bottleneck risk). Recommended actions: Deploy 2 additional security units, activate alternate entry routes, monitor for next 20 minutes.';
+                } else if (query.includes('medical')) {
+                    response = '<strong>Medical Incidents Summary:</strong> 2 active medical emergencies - 1 in South Zone (cardiac), 1 in East Zone (minor injury). Medical Unit 3 responding. Ambulance on standby.';
+                } else if (query.includes('resource') || query.includes('status')) {
+                    response = '<strong>Resource Status:</strong> 2 units available for dispatch, 1 unit on route to incident, 1 unit busy with medical emergency. Overall response capacity: 75%.';
+                } else {
+                    response = '<strong>AI Analysis:</strong> Based on current data, all zones are being monitored. No immediate critical issues detected. Recommend continued surveillance of crowd patterns.';
+                }
+                
+                results.innerHTML = response;
+            }
+        }
+
+        function showSampleQuery(type) {
+            const results = document.getElementById('query-results');
+            results.style.display = 'block';
+            
+            const responses = {
+                'West Zone Summary': '<strong>West Zone Analysis:</strong> Current crowd density: High (75% bottleneck risk). Recommended actions: Deploy 2 additional security units, activate alternate entry routes, monitor for next 20 minutes.',
+                'Medical Incidents': '<strong>Medical Incidents Summary:</strong> 2 active medical emergencies - 1 in South Zone (cardiac), 1 in East Zone (minor injury). Medical Unit 3 responding. Ambulance on standby.',
+                'Resource Status': '<strong>Resource Status:</strong> 2 units available for dispatch, 1 unit on route to incident, 1 unit busy with medical emergency. Overall response capacity: 75%.'
+            };
+            
+            results.innerHTML = responses[type];
+        }
+
+        // Update forecast time display
+        document.querySelector('.time-slider').addEventListener('input', function(e) {
+            const value = e.target.value;
+            const timeDisplay = document.getElementById('forecast-time');
+            if (value == 0) {
+                timeDisplay.textContent = 'Current';
+            } else {
+                timeDisplay.textContent = `+${value} minutes`;
+            }
+        });
+
+        // Simulate real-time updates
+        setInterval(() => {
+            const alerts = document.querySelectorAll('.alert-item small');
+            alerts.forEach(alert => {
+                const text = alert.textContent;
+                const match = text.match(/(\d+) minutes ago/);
+                if (match) {
+                    const minutes = parseInt(match[1]) + 1;
+                    alert.textContent = `Reported ${minutes} minutes ago`;
+                }
+            });
+        }, 60000); // Update every minute
+    </script>
+</body>
+</html>
